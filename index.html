@@ -4,33 +4,27 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Wind 서버</title>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR&display=swap" rel="stylesheet">
+
 <style>
-body{font-family:'Noto Sans KR',sans-serif;margin:0;background:#f7f9fc;color:#111}
-.sidebar{width:220px;position:fixed;height:100%;background:#fff;border-right:1px solid #e5e7eb;padding:20px}
+body{font-family:'Noto Sans KR',sans-serif;margin:0;background:#f7f9fc}
+.sidebar{width:220px;position:fixed;height:100%;background:#fff;border-right:1px solid #ddd;padding:20px}
 .main{margin-left:240px;padding:40px}
-.nav{cursor:pointer;margin:10px 0;padding:8px;border-radius:8px}
-.nav:hover{background:#eef2ff}
+.nav{cursor:pointer;margin:10px 0;padding:10px;border-radius:8px}
+.nav:hover{background:#eee}
 .page{display:none}
 .page.active{display:block}
-.card{border:1px solid #e5e7eb;border-radius:12px;padding:20px;margin-bottom:20px;background:#fff}
-.server-box{border:2px solid #4caf50;padding:15px;margin-bottom:20px;font-weight:bold;border-radius:12px;background:#ecfdf5}
-.status-box{border:2px solid #3b82f6;padding:15px;margin-bottom:20px;border-radius:12px;background:#eff6ff;display:flex;justify-content:space-between}
-.btn{padding:10px;background:#5865F2;color:#fff;border:none;border-radius:8px;cursor:pointer}
-input,select,textarea{width:100%;padding:10px;margin-top:10px;border:1px solid #ccc;border-radius:8px}
+.card{background:#fff;padding:20px;border-radius:12px;margin-bottom:20px;border:1px solid #ddd}
+.btn{padding:10px;background:#5865F2;color:white;border:none;border-radius:8px;cursor:pointer}
+input,select,textarea{width:100%;padding:10px;margin-top:10px;border-radius:8px;border:1px solid #ccc}
 
-/* 우측 상단 관리자 로그인 버튼 */
-#adminLoginBtn{
-  position:fixed;
-  top:20px;
-  right:20px;
-  z-index:1000;
-}
+#adminLoginBtn{position:fixed;top:20px;right:20px}
 </style>
 </head>
+
 <body>
 
-<!-- 관리자 로그인 버튼 -->
 <button id="adminLoginBtn" class="btn" onclick="showAdmin()">관리자 로그인</button>
 
 <div class="sidebar">
@@ -41,156 +35,159 @@ input,select,textarea{width:100%;padding:10px;margin-top:10px;border:1px solid #
 
 <div class="main">
 
-<div class="server-box">서버 주소: windsv.m-c.kr</div>
-<div class="status-box">
-  <div>🟢 서버 상태: 온라인</div>
-  <div>홈페이지: 준비 중</div>
-</div>
-
 <!-- HOME -->
 <div id="home" class="page active">
+
   <div class="card">
-    <h3>마인크래프트 서버 소개</h3>
-    <p>wind마인크래프트서버는 약탈서버이고 반야생 서버입니다. 이벤트 진행도 많이 하니 많이 와주세요!</p>
+    <h3>📌 서버 안내</h3>
+
+    <div class="nav" onclick="toggleContent(1)">▶ 1. 총합 서버 규칙</div>
+    <div id="content-1" style="display:none; padding:10px;">
+      <p>
+      1. 욕설, 비하, 패드립, 혐오 발언 등 타인이 불쾌할 수 있는 채팅은 금지입니다.<br>
+      2. 실제 돈 거래는 금지되어 있습니다.<br>
+      3. 서버에 렉을 유발하는 장치 생성 금지<br>
+      4. 관리자에게 욕설 및 무례한 행동 금지<br>
+      5. 커뮤니티 도배 금지<br>
+      6. 커뮤니티 내 분쟁 금지<br>
+      7. 버그 악용 금지<br>
+      8. 정치 및 종교 발언 금지<br>
+      9. 과도한 멘션 금지 (심할 경우 제재)<br>
+      10. 핵 및 불법 프로그램 사용 금지
+      </p>
+      <p style="color:red;"><b>※ 위반 시 타임아웃, 밴 등 처벌됩니다.</b></p>
+    </div>
+
+    <div class="nav" onclick="toggleContent(2)">▶ 2. 디스코드 서버 소개</div>
+    <div id="content-2" style="display:none; padding:10px;">
+      디스코드 서버는 마인크래프트 및 디스코드 유저를 위한 공간입니다.<br><br>
+      인증 시 스크립트, 봇 관련 기능 등 다양한 혜택 제공!<br><br>
+      자유롭게 소통 가능한 공간이니 꼭 놀러오세요!
+    </div>
+
+    <div class="nav" onclick="toggleContent(3)">▶ 3. 마인크래프트 서버 소개</div>
+    <div id="content-3" style="display:none; padding:10px;">
+      반야생 + 약탈 서버입니다.<br><br>
+      다양한 이벤트와 명령어 제공!<br><br>
+      관리자가 꾸준히 관리하는 서버입니다.<br><br>
+      서로 존중하며 즐겁게 플레이해주세요 😊
+    </div>
+
+    <div class="nav" onclick="toggleContent(4)">▶ 4. 명령어 목록</div>
+    <div id="content-4" style="display:none; padding:10px;">
+      현재 준비 중입니다. 추후 업데이트 예정입니다.
+    </div>
+
   </div>
+
   <div class="card">
-    <h3>내 문의 확인</h3>
+    <h3>📩 내 문의 확인</h3>
     <div id="myInquiryList">문의가 없습니다.</div>
   </div>
+
 </div>
 
-<!-- CONTACT -->
+<!-- 문의 -->
 <div id="contact" class="page">
-  <h1>문의하기</h1>
   <div class="card">
-    <label>카테고리</label>
+    <h3>문의하기</h3>
+
     <select id="category">
       <option>마크서버문의</option>
       <option>버그문의</option>
       <option>신고문의</option>
-      <option>디코서버 문의</option>
+      <option>디코문의</option>
     </select>
 
-    <label>제목</label>
-    <input type="text" id="title">
-
-    <label>내용</label>
-    <textarea id="content"></textarea>
+    <input id="title" placeholder="제목">
+    <textarea id="content" placeholder="내용"></textarea>
 
     <button class="btn" onclick="submitInquiry()">제출</button>
   </div>
 </div>
 
-<!-- ADMIN VIEW -->
+<!-- 관리자 -->
 <div id="admin" class="page">
-  <h1>문의 목록</h1>
+  <h2>문의 관리</h2>
   <div id="inquiryList"></div>
 </div>
 
+</div>
+
 <script>
-// 임시 관리자 계정
-const TEMP_ADMIN = { id: 'rlaantjd', password: '1234' };
 
-// 페이지 로드 시
-window.addEventListener('DOMContentLoaded', ()=>{
-  localStorage.removeItem('admin');
-  localStorage.removeItem('adminUser');
-  loadMyInquiries();
-});
+const ADMIN = {id:'rlaantjd',pw:'1234'};
 
-function show(page){
-  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-  document.getElementById(page).classList.add('active');
-  if(page==='home') loadMyInquiries();
+// 페이지 이동
+function show(p){
+  document.querySelectorAll('.page').forEach(e=>e.classList.remove('active'));
+  document.getElementById(p).classList.add('active');
 }
 
-// 관리자 로그인 & 접근
+// 아코디언
+function toggleContent(n){
+  const el=document.getElementById('content-'+n);
+  el.style.display = el.style.display==='none'?'block':'none';
+}
+
+// 관리자 로그인
 function showAdmin(){
   if(localStorage.getItem('admin')==='true'){
+    show('admin'); loadInquiries(); return;
+  }
+
+  const id=prompt('아이디');
+  const pw=prompt('비밀번호');
+
+  if(id===ADMIN.id && pw===ADMIN.pw){
+    localStorage.setItem('admin','true');
+    alert('로그인 성공');
     show('admin');
     loadInquiries();
-  } else {
-    // 로그인 팝업
-    const username = prompt("아이디를 입력하세요:");
-    if(username === null) return;
-    const pass = prompt("비밀번호를 입력하세요:");
-    if(pass === null) return;
-
-    if(username === TEMP_ADMIN.id && pass === TEMP_ADMIN.password){
-      localStorage.setItem('admin','true');
-      localStorage.setItem('adminUser', username);
-      alert('로그인 성공');
-      show('admin');
-      loadInquiries();
-    } else {
-      alert('아이디 또는 비밀번호 틀림');
-    }
-  }
+  }else alert('로그인 실패');
 }
 
 // 문의 제출
 function submitInquiry(){
-  const category=document.getElementById('category').value;
-  const title=document.getElementById('title').value.trim();
-  const content=document.getElementById('content').value.trim();
-  if(!title||!content){alert('제목과 내용을 입력해주세요.');return;}
+  let list=JSON.parse(localStorage.getItem('inq')||'[]');
 
-  let list=JSON.parse(localStorage.getItem('inquiries')||'[]');
-  list.push({category,title,content,reply:''});
-  localStorage.setItem('inquiries',JSON.stringify(list));
+  list.push({
+    cat:category.value,
+    title:title.value,
+    content:content.value,
+    reply:''
+  });
+
+  localStorage.setItem('inq',JSON.stringify(list));
   alert('제출 완료');
-  document.getElementById('title').value='';
-  document.getElementById('content').value='';
-  loadMyInquiries();
 }
 
-// 문의 목록 불러오기 (관리자)
+// 관리자 목록
 function loadInquiries(){
-  const container=document.getElementById('inquiryList');
-  let list=JSON.parse(localStorage.getItem('inquiries')||'[]');
-  container.innerHTML='';
-  if(list.length===0) container.innerHTML='문의가 없습니다.';
-  list.forEach((i,index)=>{
-    container.innerHTML+=`
+  let list=JSON.parse(localStorage.getItem('inq')||'[]');
+  inquiryList.innerHTML='';
+
+  list.forEach((i,idx)=>{
+    inquiryList.innerHTML+=`
       <div class="card">
-        <b>[${i.category}] ${i.title}</b>
+        <b>[${i.cat}] ${i.title}</b>
         <p>${i.content}</p>
-        <div id="reply-${index}">
-          ${i.reply?`<p style="color:green;"><b>관리자 답변:</b> ${i.reply}</p>`:''}
-        </div>
-        <button class="btn" onclick="replyInquiry(${index})">답변 달기</button>
-      </div>
-    `;
+        <button onclick="reply(${idx})">답변</button>
+      </div>`;
   });
 }
 
-function replyInquiry(index){
-  const reply=prompt("답변을 입력하세요:");
-  if(reply!==null){
-    let list=JSON.parse(localStorage.getItem('inquiries')||'[]');
-    list[index].reply=reply;
-    localStorage.setItem('inquiries',JSON.stringify(list));
+// 답변
+function reply(i){
+  let list=JSON.parse(localStorage.getItem('inq')||'[]');
+  const r=prompt('답변');
+  if(r){
+    list[i].reply=r;
+    localStorage.setItem('inq',JSON.stringify(list));
     loadInquiries();
-    loadMyInquiries();
   }
 }
 
-// 내 문의 확인 (일반 사용자)
-function loadMyInquiries(){
-  const container=document.getElementById('myInquiryList');
-  let list=JSON.parse(localStorage.getItem('inquiries')||'[]');
-  if(list.length===0){container.innerHTML='문의가 없습니다.';return;}
-  container.innerHTML='';
-  list.forEach(i=>{
-    container.innerHTML+=`
-      <div class="card">
-        <b>[${i.category}] ${i.title}</b>
-        <p>${i.content}</p>
-        ${i.reply?`<p style="color:green;"><b>관리자 답변:</b> ${i.reply}</p>`:`<p style="color:gray;">관리자 답변 대기 중</p>`}
-      </div>
-    `;
-  });
-}
 </script>
 
 </body>
