@@ -18,9 +18,20 @@ body{font-family:'Noto Sans KR',sans-serif;margin:0;background:#f7f9fc;color:#11
 .status-box{border:2px solid #3b82f6;padding:15px;margin-bottom:20px;border-radius:12px;background:#eff6ff;display:flex;justify-content:space-between}
 .btn{padding:10px;background:#5865F2;color:#fff;border:none;border-radius:8px;cursor:pointer}
 input,select,textarea{width:100%;padding:10px;margin-top:10px;border:1px solid #ccc;border-radius:8px}
+
+/* 우측 상단 관리자 로그인 버튼 */
+#adminLoginBtn{
+  position:fixed;
+  top:20px;
+  right:20px;
+  z-index:1000;
+}
 </style>
 </head>
 <body>
+
+<!-- 우측 상단 관리자 로그인 버튼 -->
+<button id="adminLoginBtn" class="btn" onclick="showAdmin()">관리자 로그인</button>
 
 <div class="sidebar">
   <h3>Wind 서버</h3>
@@ -71,15 +82,6 @@ input,select,textarea{width:100%;padding:10px;margin-top:10px;border:1px solid #
   </div>
 </div>
 
-<!-- ADMIN LOGIN -->
-<div id="login" class="page">
-  <h1>관리자 로그인</h1>
-  <div class="card">
-    <input type="password" id="adminPass" placeholder="비밀번호 입력">
-    <button class="btn" onclick="login()">로그인</button>
-  </div>
-</div>
-
 <!-- ADMIN VIEW -->
 <div id="admin" class="page">
   <h1>문의 목록</h1>
@@ -87,7 +89,8 @@ input,select,textarea{width:100%;padding:10px;margin-top:10px;border:1px solid #
 </div>
 
 <script>
-const ADMIN_PASSWORD = "rlaantjd12";
+// 임시 관리자 계정
+const TEMP_ADMIN = { id: 'rlaantjd', password: '1234' };
 
 function show(page){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -96,23 +99,30 @@ function show(page){
 }
 
 function showAdmin(){
+  // 이미 로그인 상태면 바로 관리자 페이지
   if(localStorage.getItem('admin')==='true'){
     show('admin');
     loadInquiries();
   } else {
-    show('login');
+    showLoginPopup(); // 로그인 팝업 띄우기
   }
 }
 
-function login(){
-  const pass = document.getElementById('adminPass').value;
-  if(pass===ADMIN_PASSWORD){
+function showLoginPopup(){
+  const username = prompt("아이디를 입력하세요:");
+  if(username === null) return; // 취소 누르면 종료
+
+  const pass = prompt("비밀번호를 입력하세요:");
+  if(pass === null) return; // 취소 누르면 종료
+
+  if(username === TEMP_ADMIN.id && pass === TEMP_ADMIN.password){
     localStorage.setItem('admin','true');
+    localStorage.setItem('adminUser', username);
     alert('로그인 성공');
-    show('admin');
-    loadInquiries();
+    show('admin');      // 관리자 페이지로 이동
+    loadInquiries();    // 문의 목록 불러오기
   } else {
-    alert('비밀번호 틀림');
+    alert('아이디 또는 비밀번호 틀림');
   }
 }
 
