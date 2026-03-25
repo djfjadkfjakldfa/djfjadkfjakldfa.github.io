@@ -43,46 +43,36 @@ input,select,textarea{width:100%;padding:10px;margin-top:10px;border-radius:8px;
 
     <div class="nav" onclick="toggleContent(1)">▶ 1. 총합 서버 규칙</div>
     <div id="content-1" style="display:none; padding:10px;">
-      <p>
-      1. 욕설, 비하, 패드립, 혐오 발언 등 타인이 불쾌할 수 있는 채팅은 금지입니다.<br>
-      2. 실제 돈 거래는 금지되어 있습니다.<br>
-      3. 서버에 렉을 유발하는 장치 생성 금지<br>
-      4. 관리자에게 욕설 및 무례한 행동 금지<br>
-      5. 커뮤니티 도배 금지<br>
-      6. 커뮤니티 내 분쟁 금지<br>
-      7. 버그 악용 금지<br>
-      8. 정치 및 종교 발언 금지<br>
-      9. 과도한 멘션 금지 (심할 경우 제재)<br>
-      10. 핵 및 불법 프로그램 사용 금지
-      </p>
-      <p style="color:red;"><b>※ 위반 시 타임아웃, 밴 등 처벌됩니다.</b></p>
+      욕설, 비하, 패드립 등 타인을 불쾌하게 하는 행위 금지<br>
+      현금 거래 금지<br>
+      렉 유발 금지<br>
+      관리자 비하 금지<br>
+      도배 및 싸움 금지<br>
+      버그 악용 금지<br>
+      정치/종교 발언 금지<br>
+      핵 사용 금지<br><br>
+      <b style="color:red;">위반 시 타임아웃 또는 밴 처리됩니다.</b>
     </div>
 
     <div class="nav" onclick="toggleContent(2)">▶ 2. 디스코드 서버 소개</div>
     <div id="content-2" style="display:none; padding:10px;">
-      디스코드 서버는 마인크래프트 및 디스코드 유저를 위한 공간입니다.<br><br>
-      인증 시 스크립트, 봇 관련 기능 등 다양한 혜택 제공!<br><br>
-      자유롭게 소통 가능한 공간이니 꼭 놀러오세요!
+      디스코드에서 인증 시 다양한 혜택 제공! 꼭 참여해주세요 😊
     </div>
 
     <div class="nav" onclick="toggleContent(3)">▶ 3. 마인크래프트 서버 소개</div>
     <div id="content-3" style="display:none; padding:10px;">
-      반야생 + 약탈 서버입니다.<br><br>
-      다양한 이벤트와 명령어 제공!<br><br>
-      관리자가 꾸준히 관리하는 서버입니다.<br><br>
-      서로 존중하며 즐겁게 플레이해주세요 😊
+      반야생 + 약탈 서버! 다양한 이벤트와 재미 요소가 있습니다.
     </div>
 
     <div class="nav" onclick="toggleContent(4)">▶ 4. 명령어 목록</div>
     <div id="content-4" style="display:none; padding:10px;">
-      현재 준비 중입니다. 추후 업데이트 예정입니다.
+      준비 중입니다.
     </div>
-
   </div>
 
   <div class="card">
-    <h3>📩 내 문의 확인</h3>
-    <div id="myInquiryList">문의가 없습니다.</div>
+    <h3>📩 내 문의</h3>
+    <div id="myInquiryList">문의 없음</div>
   </div>
 
 </div>
@@ -93,10 +83,9 @@ input,select,textarea{width:100%;padding:10px;margin-top:10px;border-radius:8px;
     <h3>문의하기</h3>
 
     <select id="category">
-      <option>마크서버문의</option>
-      <option>버그문의</option>
-      <option>신고문의</option>
-      <option>디코문의</option>
+      <option>마크</option>
+      <option>버그</option>
+      <option>신고</option>
     </select>
 
     <input id="title" placeholder="제목">
@@ -116,15 +105,16 @@ input,select,textarea{width:100%;padding:10px;margin-top:10px;border-radius:8px;
 
 <script>
 
-const ADMIN = {id:'rlaantjd',pw:'1234'};
+const ADMIN={id:'rlaantjd',pw:'1234'};
 
 // 페이지 이동
 function show(p){
   document.querySelectorAll('.page').forEach(e=>e.classList.remove('active'));
   document.getElementById(p).classList.add('active');
+  if(p==='home') loadMy();
 }
 
-// 아코디언
+// 펼치기
 function toggleContent(n){
   const el=document.getElementById('content-'+n);
   el.style.display = el.style.display==='none'?'block':'none';
@@ -133,9 +123,8 @@ function toggleContent(n){
 // 관리자 로그인
 function showAdmin(){
   if(localStorage.getItem('admin')==='true'){
-    show('admin'); loadInquiries(); return;
+    show('admin'); loadAdmin(); return;
   }
-
   const id=prompt('아이디');
   const pw=prompt('비밀번호');
 
@@ -143,13 +132,13 @@ function showAdmin(){
     localStorage.setItem('admin','true');
     alert('로그인 성공');
     show('admin');
-    loadInquiries();
-  }else alert('로그인 실패');
+    loadAdmin();
+  }else alert('실패');
 }
 
 // 문의 제출
 function submitInquiry(){
-  let list=JSON.parse(localStorage.getItem('inq')||'[]');
+  let list=JSON.parse(localStorage.getItem('inquiries')||'[]');
 
   list.push({
     cat:category.value,
@@ -158,35 +147,62 @@ function submitInquiry(){
     reply:''
   });
 
-  localStorage.setItem('inq',JSON.stringify(list));
+  localStorage.setItem('inquiries',JSON.stringify(list));
   alert('제출 완료');
+
+  title.value=''; content.value='';
+  loadMy();
 }
 
-// 관리자 목록
-function loadInquiries(){
-  let list=JSON.parse(localStorage.getItem('inq')||'[]');
+// 관리자 보기
+function loadAdmin(){
+  let list=JSON.parse(localStorage.getItem('inquiries')||'[]');
   inquiryList.innerHTML='';
+
+  if(list.length===0){inquiryList.innerHTML='없음';return;}
 
   list.forEach((i,idx)=>{
     inquiryList.innerHTML+=`
-      <div class="card">
-        <b>[${i.cat}] ${i.title}</b>
-        <p>${i.content}</p>
-        <button onclick="reply(${idx})">답변</button>
-      </div>`;
+    <div class="card">
+      <b>[${i.cat}] ${i.title}</b>
+      <p>${i.content}</p>
+      ${i.reply?`<p style="color:green;">답변: ${i.reply}</p>`:''}
+      <button onclick="reply(${idx})">답변</button>
+    </div>`;
   });
 }
 
 // 답변
 function reply(i){
-  let list=JSON.parse(localStorage.getItem('inq')||'[]');
-  const r=prompt('답변');
+  let list=JSON.parse(localStorage.getItem('inquiries')||'[]');
+  const r=prompt('답변 입력');
   if(r){
     list[i].reply=r;
-    localStorage.setItem('inq',JSON.stringify(list));
-    loadInquiries();
+    localStorage.setItem('inquiries',JSON.stringify(list));
+    loadAdmin();
+    loadMy();
   }
 }
+
+// 내 문의
+function loadMy(){
+  let list=JSON.parse(localStorage.getItem('inquiries')||'[]');
+  myInquiryList.innerHTML='';
+
+  if(list.length===0){myInquiryList.innerHTML='문의 없음';return;}
+
+  list.forEach(i=>{
+    myInquiryList.innerHTML+=`
+    <div class="card">
+      <b>[${i.cat}] ${i.title}</b>
+      <p>${i.content}</p>
+      ${i.reply?`<p style="color:green;">답변: ${i.reply}</p>`:`<p style="color:gray;">답변 대기중</p>`}
+    </div>`;
+  });
+}
+
+// 초기 로드
+window.onload=loadMy;
 
 </script>
 
