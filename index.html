@@ -30,14 +30,14 @@ input,select,textarea{width:100%;padding:10px;margin-top:10px;border:1px solid #
 </head>
 <body>
 
-<!-- 우측 상단 관리자 로그인 버튼 -->
+<!-- 우측 상단 관리자 로그인 버튼 (초기엔 숨김) -->
 <button id="adminLoginBtn" class="btn" onclick="showAdmin()">관리자 로그인</button>
 
 <div class="sidebar">
   <h3>Wind 서버</h3>
   <div class="nav" onclick="show('home')">🏠 서버 소개</div>
   <div class="nav" onclick="show('contact')">📩 문의</div>
-  <div class="nav" onclick="showAdmin()">🛠 문의관리</div>
+  <div class="nav" id="adminNav" onclick="showAdmin()">🛠 문의관리</div>
 </div>
 
 <div class="main">
@@ -92,6 +92,18 @@ input,select,textarea{width:100%;padding:10px;margin-top:10px;border:1px solid #
 // 임시 관리자 계정
 const TEMP_ADMIN = { id: 'rlaantjd', password: '1234' };
 
+// 페이지 로드 시
+window.addEventListener('DOMContentLoaded', ()=>{
+  // admin 상태 초기화
+  localStorage.removeItem('admin');
+  localStorage.removeItem('adminUser');
+  loadMyInquiries();
+
+  // 관리자 메뉴 숨기기
+  document.getElementById('adminNav').style.display = 'none';
+  document.getElementById('adminLoginBtn').style.display = 'none';
+});
+
 function show(page){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.getElementById(page).classList.add('active');
@@ -117,6 +129,11 @@ function showLoginPopup(){
     localStorage.setItem('admin','true');
     localStorage.setItem('adminUser', username);
     alert('로그인 성공');
+
+    // 로그인 성공 시 관리자 메뉴 표시
+    document.getElementById('adminNav').style.display = 'block';
+    document.getElementById('adminLoginBtn').style.display = 'block';
+
     show('admin');
     loadInquiries();
   } else {
@@ -184,13 +201,6 @@ function loadMyInquiries(){
     `;
   });
 }
-
-// 🔹 페이지 로드 시 admin 상태 초기화 + 문의 불러오기
-window.addEventListener('DOMContentLoaded', ()=>{
-  localStorage.removeItem('admin');
-  localStorage.removeItem('adminUser');
-  loadMyInquiries();
-});
 </script>
 
 </body>
