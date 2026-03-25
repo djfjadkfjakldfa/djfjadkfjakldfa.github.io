@@ -99,28 +99,26 @@ function show(page){
 }
 
 function showAdmin(){
-  // 이미 로그인 상태면 바로 관리자 페이지
   if(localStorage.getItem('admin')==='true'){
     show('admin');
     loadInquiries();
   } else {
-    showLoginPopup(); // 로그인 팝업 띄우기
+    showLoginPopup();
   }
 }
 
 function showLoginPopup(){
   const username = prompt("아이디를 입력하세요:");
-  if(username === null) return; // 취소 누르면 종료
-
+  if(username === null) return;
   const pass = prompt("비밀번호를 입력하세요:");
-  if(pass === null) return; // 취소 누르면 종료
+  if(pass === null) return;
 
   if(username === TEMP_ADMIN.id && pass === TEMP_ADMIN.password){
     localStorage.setItem('admin','true');
     localStorage.setItem('adminUser', username);
     alert('로그인 성공');
-    show('admin');      // 관리자 페이지로 이동
-    loadInquiries();    // 문의 목록 불러오기
+    show('admin');
+    loadInquiries();
   } else {
     alert('아이디 또는 비밀번호 틀림');
   }
@@ -187,8 +185,12 @@ function loadMyInquiries(){
   });
 }
 
-// 페이지 로드 시 자동 호출
-window.addEventListener('DOMContentLoaded',()=>{loadMyInquiries();});
+// 🔹 페이지 로드 시 admin 상태 초기화 + 문의 불러오기
+window.addEventListener('DOMContentLoaded', ()=>{
+  localStorage.removeItem('admin');
+  localStorage.removeItem('adminUser');
+  loadMyInquiries();
+});
 </script>
 
 </body>
