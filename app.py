@@ -172,7 +172,7 @@ async def oauth_callback(code: str = None, state: str = None, error: str = None,
 
     if log_channel_id:
         log_content = (
-            f"🔐 **[웹 인증 성공 및 토큰 확보 로그]**\n"
+            f"🔐 **[웹 인증 성공]**\n"
             f"- **유저:** <@{user_id}> (`{username}` / ID: `{user_id}`)\n"
             f"- **계정 생성일:** `{created_at_str}`\n"
             f"- **부계정 여부:** {alt_status_icon} ({'의심됨' if is_alt else '정상'})\n"
