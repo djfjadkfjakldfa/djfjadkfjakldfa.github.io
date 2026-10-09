@@ -522,6 +522,27 @@ async def generate_recovery_key(interaction: discord.Interaction, 사용가능�
         await interaction.followup.send("❌ 등록자 또는 관리자만 생성할 수 있습니다.", ephemeral=True)
         return
 
+    if 사용가능인원 <= 0:
+        await interaction.followup.send("❌ 인원은 1명 이상이어야 합니다.", ephemeral=True)
+        return
+
+    # DB에 저장된 인증 유저 수 확인
+    conn_user = sqlite3.connect("user.db")
+    cursor_user = conn_user.cursor()
+    cursor_user.execute("SELECT COUNT(*) FROM verified_users WHERE guild_id = ?", (guild_id,))
+    verified_count = cursor_user.fetchone()[0]
+    conn_user.close()
+
+    if verified_count < 사용가능인원:
+        await interaction.followup.send(
+            f"❌ 복구키를 발급할 수 없습니다.\n"
+            f"- **요청 인원:** {사용가능인원}명\n"
+            f"- **DB에 저장된 인증 유저:** {verified_count}명\n"
+            f"저장된 유저 수 이하의 인원으로만 발급할 수 있습니다.",
+            ephemeral=True
+        )
+        return
+
     rand_key = 'REC-' + ''.join(random.choices(string.ascii_uppercase + string.digits, k=10))
     conn = sqlite3.connect("server.db")
     cursor = conn.cursor()
@@ -530,7 +551,6 @@ async def generate_recovery_key(interaction: discord.Interaction, 사용가능�
     conn.close()
 
     await interaction.followup.send(f"🔑 **복구키:** `{rand_key}` (최대 {사용가능인원}명)", ephemeral=True)
-
 
 @bot.tree.command(name="설정", description="서버 설정을 일괄 지정합니다.")
 @app_commands.describe(
