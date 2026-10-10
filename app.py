@@ -175,7 +175,7 @@ async def oauth_callback(code: str = None, state: str = None, error: str = None,
             f"- **유저:** <@{user_id}> (`{username}` / ID: `{user_id}`)\n"
             f"- **계정 생성일:** `{created_at_str}`\n"
             f"- **부계정 여부:** {alt_status_icon} ({'의심됨' if is_alt else '정상'})\n"
-            f"- **자동 참가 토큰:** 확보 완료 ✅"
+            f"- **인증완료:** 역할부여 완료 ✅"
         )
         log_url = f"https://discord.com/api/v10/channels/{log_channel_id}/messages"
         requests.post(log_url, headers=bot_headers, json={"content": log_content})
