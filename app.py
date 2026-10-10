@@ -368,11 +368,11 @@ class RecoveryPanelView(discord.ui.View):
         super().__init__(timeout=None)
         self.is_owner_or_master = is_owner_or_master
 
-    @discord.ui.button(label="복구키 사용하기", style=discord.ButtonStyle.green, custom_id="use_recovery_key_btn")
+    @discord.ui.button(label="복구키 사용하기", style=discord.ButtonStyle.secondary, custom_id="use_recovery_key_btn")
     async def handle_recovery(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.send_modal(RecoveryModal())
 
-    @discord.ui.button(label="라이센스 연장하기", style=discord.ButtonStyle.blurple, custom_id="extend_license_btn")
+    @discord.ui.button(label="라이센스 연장하기", style=discord.ButtonStyle.secondary, custom_id="extend_license_btn")
     async def handle_extend(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not self.is_owner_or_master:
             await interaction.response.send_message("❌ 마스터키 서버 또는 소유자만 사용할 수 있습니다.", ephemeral=True)
