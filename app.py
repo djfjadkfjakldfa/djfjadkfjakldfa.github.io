@@ -272,7 +272,12 @@ class LicenseExtendModal(discord.ui.Modal, title="라이센스 연장"):
         cursor.execute("SELECT license_expire FROM guild_settings WHERE guild_id = ?", (guild_id,))
         g_row = cursor.fetchone()
 
-        current_expire = g_row[0] if g_row else None
+        if not g_row:
+            conn.close()
+            await interaction.followup.send("❌ 먼저 `/복구봇등록`으로 서버를 등록해주세요.", ephemeral=True)
+            return
+
+        current_expire = g_row[0]
         now = datetime.datetime.utcnow()
 
         if current_expire:
@@ -530,6 +535,17 @@ async def register_bot(interaction: discord.Interaction, 키: str):
 
     conn = sqlite3.connect("server.db")
     cursor = conn.cursor()
+
+    # 이미 등록된 서버는 재등록 불가 (연장키로만 연장)
+    cursor.execute("SELECT is_registered FROM guild_settings WHERE guild_id = ?", (guild_id,))
+    reg_row = cursor.fetchone()
+    if reg_row and reg_row[0] == 1:
+        conn.close()
+        await interaction.followup.send(
+            "❌ 이미 등록된 서버입니다. 기간을 늘리려면 복구 패널의 **라이센스 연장하기** 버튼에서 연장키를 사용해주세요.",
+            ephemeral=True
+        )
+        return
 
     if is_master:
         cursor.execute("""
