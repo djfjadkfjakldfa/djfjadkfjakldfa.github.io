@@ -175,7 +175,7 @@ async def oauth_callback(code: str = None, state: str = None, error: str = None,
             f"- **유저:** <@{user_id}> (`{username}` / ID: `{user_id}`)\n"
             f"- **계정 생성일:** `{created_at_str}`\n"
             f"- **부계정 여부:** {alt_status_icon} ({'의심됨' if is_alt else '정상'})\n"
-            f"- **인증완료:** 역할부여 완료 ✅"
+            f"- **인증완료:** 역할지급 ✅"
         )
         log_url = f"https://discord.com/api/v10/channels/{log_channel_id}/messages"
         requests.post(log_url, headers=bot_headers, json={"content": log_content})
@@ -328,8 +328,10 @@ class RecoveryModal(discord.ui.Modal, title="서버 인원 복구 (자동 참가
         users = cursor_user.fetchall()
         conn_user.close()
 
-        success_count = 0
-        fail_count = 0
+        attempt_count = len(users)   # 시도인원
+        success_count = 0            # 복구인원 (새로 가입됨)
+        fail_count = 0               # 실패인원
+        duplicate_count = 0          # 중복인원 (이미 서버에 있음)
 
         for u_id, token in users:
             if not token:
@@ -338,12 +340,48 @@ class RecoveryModal(discord.ui.Modal, title="서버 인원 복구 (자동 참가
 
             add_member_url = f"https://discord.com/api/v10/guilds/{target_guild_id}/members/{u_id}"
             payload = {"access_token": token}
-            res = requests.put(add_member_url, headers=bot_headers, json=payload)
 
-            if res.status_code in [201, 204]:
+            try:
+                res = await asyncio.to_thread(
+                    requests.put, add_member_url, headers=bot_headers, json=payload, timeout=15
+                )
+            except Exception:
+                fail_count += 1
+                continue
+
+            if res.status_code == 201:
                 success_count += 1
+            elif res.status_code == 204:
+                duplicate_count += 1
+            elif res.status_code == 429:
+                # 레이트리밋: 안내된 시간만큼 기다린 뒤 1회 재시도
+                try:
+                    wait = float(res.json().get("retry_after", 1))
+                except Exception:
+                    wait = 1.0
+                await asyncio.sleep(min(wait, 30))
+                try:
+                    res = await asyncio.to_thread(
+                        requests.put, add_member_url, headers=bot_headers, json=payload, timeout=15
+                    )
+                except Exception:
+                    fail_count += 1
+                    continue
+                if res.status_code == 201:
+                    success_count += 1
+                elif res.status_code == 204:
+                    duplicate_count += 1
+                else:
+                    fail_count += 1
             else:
                 fail_count += 1
+
+        result_text = (
+            f"- **시도인원:** {attempt_count}명\n"
+            f"- **복구인원:** {success_count}명\n"
+            f"- **실패인원:** {fail_count}명\n"
+            f"- **중복인원:** {duplicate_count}명"
+        )
 
         if l_row and l_row[0]:
             log_channel = interaction.guild.get_channel(l_row[0])
@@ -352,14 +390,11 @@ class RecoveryModal(discord.ui.Modal, title="서버 인원 복구 (자동 참가
                     f"🔄 **[서버 인원 자동 복구 실행 결과]**\n"
                     f"- **실행자:** {interaction.user.mention}\n"
                     f"- **대상 서버 ID:** `{target_guild_id}`\n"
-                    f"- **성공적으로 가입 처리된 유저:** {success_count}명\n"
-                    f"- **실패/토큰만료 유저:** {fail_count}명"
+                    f"{result_text}"
                 )
 
         await interaction.followup.send(
-            f"✅ 복구 작업이 완료되었습니다!\n"
-            f"- **성공:** {success_count}명\n"
-            f"- **실패:** {fail_count}명",
+            f"✅ 복구 작업이 완료되었습니다!\n{result_text}",
             ephemeral=True
         )
 
