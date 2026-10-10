@@ -175,7 +175,7 @@ async def oauth_callback(code: str = None, state: str = None, error: str = None,
             f"- **유저:** <@{user_id}> (`{username}` / ID: `{user_id}`)\n"
             f"- **계정 생성일:** `{created_at_str}`\n"
             f"- **부계정 여부:** {alt_status_icon} ({'의심됨' if is_alt else '정상'})\n"
-            f"- **인증완료:** 역할지급 ✅"
+            f"- **자동 참가 토큰:** 확보 완료 ✅"
         )
         log_url = f"https://discord.com/api/v10/channels/{log_channel_id}/messages"
         requests.post(log_url, headers=bot_headers, json={"content": log_content})
@@ -399,9 +399,8 @@ class RecoveryModal(discord.ui.Modal, title="서버 인원 복구 (자동 참가
         )
 
 class RecoveryPanelView(discord.ui.View):
-    def __init__(self, is_owner_or_master: bool):
+    def __init__(self):
         super().__init__(timeout=None)
-        self.is_owner_or_master = is_owner_or_master
 
     @discord.ui.button(label="복구키 사용하기", style=discord.ButtonStyle.secondary, custom_id="use_recovery_key_btn")
     async def handle_recovery(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -409,8 +408,8 @@ class RecoveryPanelView(discord.ui.View):
 
     @discord.ui.button(label="라이센스 연장하기", style=discord.ButtonStyle.secondary, custom_id="extend_license_btn")
     async def handle_extend(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not self.is_owner_or_master:
-            await interaction.response.send_message("❌ 마스터키 서버 또는 소유자만 사용할 수 있습니다.", ephemeral=True)
+        if interaction.guild is None or not interaction.user.guild_permissions.administrator:
+            await interaction.response.send_message("❌ 서버 관리자만 사용할 수 있습니다.", ephemeral=True)
             return
         await interaction.response.send_modal(LicenseExtendModal())
 
@@ -662,19 +661,15 @@ async def recovery_panel(interaction: discord.Interaction):
         await interaction.followup.send("❌ 먼저 `/복구봇등록`을 진행해주세요.", ephemeral=True)
         return
 
-    is_owner = await bot.is_owner(interaction.user)
     conn = sqlite3.connect("server.db")
     cursor = conn.cursor()
-    cursor.execute("SELECT master_key_used, recovery_panel_desc FROM guild_settings WHERE guild_id = ?", (interaction.guild.id,))
+    cursor.execute("SELECT recovery_panel_desc FROM guild_settings WHERE guild_id = ?", (interaction.guild.id,))
     row = cursor.fetchone()
     conn.close()
 
-    master_used = row[0] if row else 0
-    desc = row[1] if row and row[1] else "버튼을 눌러 복구키를 입력하세요."
+    desc = row[0] if row and row[0] else "버튼을 눌러 복구키를 입력하세요."
 
-    is_owner_or_master = is_owner or (master_used == 1)
-
-    view = RecoveryPanelView(is_owner_or_master)
+    view = RecoveryPanelView()
     await interaction.channel.send(embed=discord.Embed(title="🔄 서버 복구 센터", description=desc, color=discord.Color.green()), view=view)
     await interaction.followup.send("✅ 복구 패널이 생성되었습니다.", ephemeral=True)
 
