@@ -30,6 +30,20 @@ MASTER_KEY = os.getenv("MASTER_KEY", "MASTERKEY123")
 
 BACKUP_VERSION = 2
 
+
+# ==========================================
+# 라이센스 날짜 헬퍼 (날짜끼리 비교, UTC 기준)
+# ==========================================
+def is_license_expired(expire_str: str) -> bool:
+    """만료일 당일까지는 유효, 다음 날부터 만료."""
+    expire_date = datetime.datetime.strptime(expire_str, "%Y-%m-%d").date()
+    return datetime.datetime.utcnow().date() > expire_date
+
+def get_remaining_days(expire_str: str) -> int:
+    expire_date = datetime.datetime.strptime(expire_str, "%Y-%m-%d").date()
+    return (expire_date - datetime.datetime.utcnow().date()).days
+
+
 # ==========================================
 # 2. 데이터베이스 초기화 (server.db, user.db)
 # ==========================================
@@ -66,6 +80,15 @@ def init_databases():
             guild_id INTEGER,
             max_uses INTEGER,
             used_count INTEGER DEFAULT 0
+        )
+    """)
+    # 만료 알림 중복 발송 방지용
+    cursor_server.execute("""
+        CREATE TABLE IF NOT EXISTS expire_notices (
+            guild_id INTEGER,
+            expire_date TEXT,
+            days_left INTEGER,
+            PRIMARY KEY (guild_id, expire_date, days_left)
         )
     """)
     conn_server.commit()
@@ -149,8 +172,7 @@ async def oauth_callback(code: str = None, state: str = None, error: str = None,
     role_id, log_channel_id, _, expire_str = row
 
     if expire_str:
-        expire_dt = datetime.datetime.strptime(expire_str, "%Y-%m-%d")
-        if datetime.datetime.utcnow() > expire_dt:
+        if is_license_expired(expire_str):
             return "<h3>❌ 이 서버의 라이센스가 만료되었습니다.</h3>"
 
     bot_headers = {"Authorization": f"Bot {TOKEN}", "Content-Type": "application/json"}
@@ -215,8 +237,7 @@ def check_guild_registered(guild_id: int) -> bool:
     if row[2] == 1:
         return True
     if row[1]:
-        expire_dt = datetime.datetime.strptime(row[1], "%Y-%m-%d")
-        if datetime.datetime.utcnow() > expire_dt:
+        if is_license_expired(row[1]):
             return False
     return True
 
@@ -404,6 +425,9 @@ class RecoveryPanelView(discord.ui.View):
 
     @discord.ui.button(label="복구키 사용하기", style=discord.ButtonStyle.secondary, custom_id="use_recovery_key_btn")
     async def handle_recovery(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.guild is None or not interaction.user.guild_permissions.administrator:
+            await interaction.response.send_message("❌ 서버 관리자만 사용할 수 있습니다.", ephemeral=True)
+            return
         await interaction.response.send_modal(RecoveryModal())
 
     @discord.ui.button(label="라이센스 연장하기", style=discord.ButtonStyle.secondary, custom_id="extend_license_btn")
@@ -415,39 +439,73 @@ class RecoveryPanelView(discord.ui.View):
 
 
 # ==========================================
-# 6. 백그라운드 태스크 (만료 임박 알림)
+# 6. 백그라운드 태스크 (만료 임박 알림: 3일/2일/1일 전)
 # ==========================================
-@tasks.loop(hours=24)
+@tasks.loop(hours=1)
 async def license_expire_check_task():
     conn = sqlite3.connect("server.db")
     cursor = conn.cursor()
-    cursor.execute("SELECT guild_id, license_expire, registered_by, master_key_used FROM guild_settings WHERE is_registered = 1 AND master_key_used = 0")
+    cursor.execute("""
+        SELECT guild_id, license_expire, registered_by
+        FROM guild_settings
+        WHERE is_registered = 1 AND master_key_used = 0
+    """)
     rows = cursor.fetchall()
-    conn.close()
 
-    now = datetime.datetime.utcnow()
-    for guild_id, expire_str, reg_by, _ in rows:
+    for guild_id, expire_str, reg_by in rows:
         if not expire_str or not reg_by:
             continue
-        expire_dt = datetime.datetime.strptime(expire_str, "%Y-%m-%d")
-        remaining_days = (expire_dt - now).days
 
-        if remaining_days == 3:
-            try:
-                user = await bot.fetch_user(reg_by)
-                if user:
-                    guild = bot.get_guild(guild_id)
-                    guild_name = guild.name if guild else "서버"
-                    await user.send(f"⚠️ **[라이센스 만료 경고]**\n관리하시는 **{guild_name}** 서버의 복구봇 라이센스가 **3일 뒤({expire_str})** 만료됩니다!")
-            except Exception:
-                pass
+        remaining = get_remaining_days(expire_str)
+        if remaining not in (1, 2, 3):
+            continue
+
+        # 이미 보낸 알림이면 건너뜀 (연장하면 expire_date가 바뀌어 다시 알림 가능)
+        cursor.execute(
+            "INSERT OR IGNORE INTO expire_notices (guild_id, expire_date, days_left) VALUES (?, ?, ?)",
+            (guild_id, expire_str, remaining)
+        )
+        conn.commit()
+        if cursor.rowcount == 0:
+            continue
+
+        try:
+            user = await bot.fetch_user(reg_by)
+            guild = bot.get_guild(guild_id)
+            guild_name = guild.name if guild else "서버"
+            await user.send(
+                f"⚠️ **[라이센스 만료 경고]**\n"
+                f"관리하시는 **{guild_name}** 서버의 복구봇 라이센스가 "
+                f"**{remaining}일 남았습니다!** (만료일: {expire_str})"
+            )
+        except Exception:
+            pass
+
+    conn.close()
 
 
 # ==========================================
 # 7. 슬래시 명령어 정의
 # ==========================================
+def admin_only():
+    async def predicate(interaction: discord.Interaction) -> bool:
+        if interaction.guild is None or not interaction.user.guild_permissions.administrator:
+            await interaction.response.send_message("❌ 서버 관리자만 사용할 수 있습니다.", ephemeral=True)
+            return False
+        return True
+    return app_commands.check(predicate)
+
+@bot.tree.error
+async def on_app_command_error(interaction: discord.Interaction, error: app_commands.AppCommandError):
+    if isinstance(error, app_commands.CheckFailure):
+        return  # 위에서 이미 안내 메시지를 보냄
+    print(f"명령어 오류: {error}")
+
 
 @bot.tree.command(name="복구봇등록", description="라이센스 키 또는 마스터키를 입력해 해당 서버에 복구봇 기능을 활성화합니다.")
+@app_commands.guild_only()
+@app_commands.default_permissions(administrator=True)
+@admin_only()
 @app_commands.describe(키="발급받은 라이센스 키 또는 마스터키 입력")
 async def register_bot(interaction: discord.Interaction, 키: str):
     await interaction.response.defer(ephemeral=True)
@@ -529,6 +587,9 @@ async def generate_extend_key(interaction: discord.Interaction, 일수: int):
 
 
 @bot.tree.command(name="복구키", description="복구키를 생성합니다.")
+@app_commands.guild_only()
+@app_commands.default_permissions(administrator=True)
+@admin_only()
 @app_commands.describe(사용가능인원="사용할 수 있는 최대 인원")
 async def generate_recovery_key(interaction: discord.Interaction, 사용가능인원: int):
     await interaction.response.defer(ephemeral=True)
@@ -536,16 +597,6 @@ async def generate_recovery_key(interaction: discord.Interaction, 사용가능�
 
     if not check_guild_registered(guild_id):
         await interaction.followup.send("❌ 이 서버는 등록되지 않았습니다.", ephemeral=True)
-        return
-
-    conn = sqlite3.connect("server.db")
-    cursor = conn.cursor()
-    cursor.execute("SELECT registered_by FROM guild_settings WHERE guild_id = ?", (guild_id,))
-    row = cursor.fetchone()
-    conn.close()
-
-    if row and row[0] != interaction.user.id and not interaction.user.guild_permissions.administrator:
-        await interaction.followup.send("❌ 등록자 또는 관리자만 생성할 수 있습니다.", ephemeral=True)
         return
 
     if 사용가능인원 <= 0:
@@ -580,6 +631,9 @@ async def generate_recovery_key(interaction: discord.Interaction, 사용가능�
 
 
 @bot.tree.command(name="설정", description="서버 설정을 일괄 지정합니다.")
+@app_commands.guild_only()
+@app_commands.default_permissions(administrator=True)
+@admin_only()
 @app_commands.describe(
     인증로그채널="인증 로그 채널",
     복구로그채널="복구 로그 채널",
@@ -622,6 +676,9 @@ async def settings_command(
 
 
 @bot.tree.command(name="인증패널", description="웹 인증 패널을 생성합니다.")
+@app_commands.guild_only()
+@app_commands.default_permissions(administrator=True)
+@admin_only()
 async def auth_panel(interaction: discord.Interaction):
     await interaction.response.defer(ephemeral=True)
     if not check_guild_registered(interaction.guild.id):
@@ -655,6 +712,9 @@ async def auth_panel(interaction: discord.Interaction):
 
 
 @bot.tree.command(name="복구패널", description="복구 패널을 생성합니다.")
+@app_commands.guild_only()
+@app_commands.default_permissions(administrator=True)
+@admin_only()
 async def recovery_panel(interaction: discord.Interaction):
     await interaction.response.defer(ephemeral=True)
     if not check_guild_registered(interaction.guild.id):
@@ -675,6 +735,9 @@ async def recovery_panel(interaction: discord.Interaction):
 
 
 @bot.tree.command(name="인원확인", description="인증된 유저 통계를 확인합니다.")
+@app_commands.guild_only()
+@app_commands.default_permissions(administrator=True)
+@admin_only()
 async def check_stats(interaction: discord.Interaction):
     await interaction.response.defer(ephemeral=True)
     if not check_guild_registered(interaction.guild.id):
@@ -729,6 +792,9 @@ def _build_overwrites(items, role_map, guild):
 
 
 @bot.tree.command(name="서버저장", description="서버의 역할/카테고리/채널/권한 구조를 백업합니다.")
+@app_commands.guild_only()
+@app_commands.default_permissions(administrator=True)
+@admin_only()
 async def server_save(interaction: discord.Interaction):
     await interaction.response.defer(ephemeral=True)
 
@@ -800,6 +866,9 @@ async def server_save(interaction: discord.Interaction):
 
 
 @bot.tree.command(name="섭붙여넣기", description="/서버저장으로 백업한 구조를 이 서버에 그대로 만듭니다.")
+@app_commands.guild_only()
+@app_commands.default_permissions(administrator=True)
+@admin_only()
 @app_commands.describe(기존채널삭제="True면 이 서버의 기존 채널을 모두 지우고 붙여넣습니다. (현재 채널 제외)")
 async def server_paste(interaction: discord.Interaction, 기존채널삭제: bool = False):
     await interaction.response.defer(ephemeral=True)
