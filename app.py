@@ -290,6 +290,8 @@ class LicenseExtendModal(discord.ui.Modal, title="라이센스 연장"):
 
         await interaction.followup.send(f"✅ 라이센스가 연장되었습니다! (새 만료일: `{new_expire}`)", ephemeral=True)
 
+        await run_expire_check()
+
 class RecoveryModal(discord.ui.Modal, title="서버 인원 복구 (자동 참가)"):
     recovery_key = discord.ui.TextInput(label="복구키 입력", placeholder="발급받은 복구키를 입력하세요", required=True)
     invite_code = discord.ui.TextInput(label="새로운 서버 초대코드 (뒷자리 또는 링크)", placeholder="예: r9YGA8Epb 또는 전체 링크", required=True)
@@ -441,8 +443,7 @@ class RecoveryPanelView(discord.ui.View):
 # ==========================================
 # 6. 백그라운드 태스크 (만료 임박 알림: 3일/2일/1일 전)
 # ==========================================
-@tasks.loop(hours=1)
-async def license_expire_check_task():
+async def run_expire_check():
     conn = sqlite3.connect("server.db")
     cursor = conn.cursor()
     cursor.execute("""
@@ -462,11 +463,10 @@ async def license_expire_check_task():
 
         # 이미 보낸 알림이면 건너뜀 (연장하면 expire_date가 바뀌어 다시 알림 가능)
         cursor.execute(
-            "INSERT OR IGNORE INTO expire_notices (guild_id, expire_date, days_left) VALUES (?, ?, ?)",
+            "SELECT 1 FROM expire_notices WHERE guild_id = ? AND expire_date = ? AND days_left = ?",
             (guild_id, expire_str, remaining)
         )
-        conn.commit()
-        if cursor.rowcount == 0:
+        if cursor.fetchone():
             continue
 
         try:
@@ -478,10 +478,25 @@ async def license_expire_check_task():
                 f"관리하시는 **{guild_name}** 서버의 복구봇 라이센스가 "
                 f"**{remaining}일 남았습니다!** (만료일: {expire_str})"
             )
-        except Exception:
-            pass
+        except Exception as e:
+            # DM 실패 시 기록하지 않아서 다음 검사 때 다시 시도함
+            print(f"[만료 알림 실패] guild={guild_id} user={reg_by}: {type(e).__name__}: {e}")
+            continue
+
+        # DM 발송 성공 후에만 기록
+        cursor.execute(
+            "INSERT OR IGNORE INTO expire_notices (guild_id, expire_date, days_left) VALUES (?, ?, ?)",
+            (guild_id, expire_str, remaining)
+        )
+        conn.commit()
+        print(f"[만료 알림 발송] guild={guild_id} user={reg_by} remaining={remaining}")
 
     conn.close()
+
+
+@tasks.loop(minutes=10)
+async def license_expire_check_task():
+    await run_expire_check()
 
 
 # ==========================================
@@ -540,7 +555,7 @@ async def register_bot(interaction: discord.Interaction, 키: str):
         cursor.execute("""
             INSERT INTO guild_settings (guild_id, is_registered, license_expire, registered_by)
             VALUES (?, 1, ?, ?)
-            ON CONFLICT(guild_id) DO UPDATE SET is_registered = 1, license_expire = ?, registered_by = ?
+            ON CONFLICT(guild_id) DO UPDATE SET is_registered = 1, license_expire = ?, registered_by = ?, master_key_used = 0
         """, (guild_id, expire_date, user_id, expire_date, user_id))
 
         cursor.execute("UPDATE license_keys SET is_used = 1 WHERE key = ?", (키,))
@@ -548,6 +563,9 @@ async def register_bot(interaction: discord.Interaction, 키: str):
         conn.close()
 
         await interaction.followup.send(f"✅ 라이센스가 등록되었습니다! (만료일: `{expire_date}`)", ephemeral=True)
+
+        # 등록 직후 바로 만료 알림 검사 (3일짜리면 즉시 "3일 남음" DM)
+        await run_expire_check()
 
 
 @bot.tree.command(name="라이센스발급", description="[Owner 전용] 라이센스 키를 생성합니다.")
