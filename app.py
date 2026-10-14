@@ -1,27 +1,38 @@
 import os
 import random
 import string
+import threading
 import colorama
 import tls_client
 import discord
 from discord import app_commands
 from discord.ext import commands
+from flask import Flask
 
 # 초기화 설정
 colorama.init(convert=True)
 
-# 봇 설정 (인텐트 설정)
+# Render 웹 서비스 포트 유지를 위한 간단한 Flask 서버
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return "Discord Boost Bot is running!"
+
+def run_web():
+    # Render가 할당하는 PORT 환경 변수를 사용 (기본값 10000)
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
+
+
+# 디스코드 봇 설정
 intents = discord.Intents.default()
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# 환경 변수에서 설정 불러오기
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 LOG_CHANNEL_ID_ENV = os.getenv("LOG_CHANNEL_ID")
-
-# 로그 채널 ID 정수 변환 (설정되지 않았거나 숫자가 아니면 None 처리)
 LOG_CHANNEL_ID = int(LOG_CHANNEL_ID_ENV) if LOG_CHANNEL_ID_ENV and LOG_CHANNEL_ID_ENV.isdigit() else None
 
-# 간단한 키 저장소
 VALID_KEYS = {}  # 형식: { "키": 부스트개수 }
 
 def log(text):
@@ -108,7 +119,6 @@ class NitroBooster:
         return boosted_count
 
 
-# 부스트 정보를 입력받는 팝업(Modal) 클래스
 class BoostModal(discord.ui.Modal, title="서버 부스트 사용하기"):
     server_link = discord.ui.TextInput(
         label="서버 링크 또는 초대 코드",
@@ -239,4 +249,7 @@ if __name__ == "__main__":
     if not DISCORD_TOKEN:
         print("❌ 오류: DISCORD_TOKEN 환경 변수가 설정되지 않았습니다.")
     else:
+        # 백그라운드에서 Flask 웹 서버 실행 (Render 포트 바인딩 에러 방지)
+        threading.Thread(target=run_web, daemon=True).start()
+        # 디스코드 봇 실행
         bot.run(DISCORD_TOKEN)
