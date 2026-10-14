@@ -14,10 +14,14 @@ colorama.init(convert=True)
 intents = discord.Intents.default()
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# 로그를 출력할 채널 ID (여기에 부스트 로그가 전송될 채널 ID를 숫자로 입력하세요)
-LOG_CHANNEL_ID = 1559850464122765443  # 예: 112233445566778899
+# 환경 변수에서 설정 불러오기
+DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
+LOG_CHANNEL_ID_ENV = os.getenv("LOG_CHANNEL_ID")
 
-# 간단한 키 저장소 (실제 운영 시 DB나 JSON 파일로 저장하는 것이 안전합니다)
+# 로그 채널 ID 정수 변환 (설정되지 않았거나 숫자가 아니면 None 처리)
+LOG_CHANNEL_ID = int(LOG_CHANNEL_ID_ENV) if LOG_CHANNEL_ID_ENV and LOG_CHANNEL_ID_ENV.isdigit() else None
+
+# 간단한 키 저장소
 VALID_KEYS = {}  # 형식: { "키": 부스트개수 }
 
 def log(text):
@@ -100,7 +104,6 @@ class NitroBooster:
             elif r.status_code == 400:
                 log(f"{colorama.Fore.YELLOW}Boost already used {i + 1} of {len(self.sub_ids)} from {self.token[25:]}")
         
-        # 부스트 시도 후 해당 토큰 소모 처리 (txt 파일에서 제거)
         self.removeTokenFromTxt()
         return boosted_count
 
@@ -126,14 +129,12 @@ class BoostModal(discord.ui.Modal, title="서버 부스트 사용하기"):
         key = self.boost_key.value.strip()
         link = self.server_link.value.strip()
 
-        # 1. 키 검증
         if key not in VALID_KEYS:
             await interaction.followup.send("❌ 유효하지 않거나 이미 사용된 부스트 키입니다.", ephemeral=True)
             return
 
         required_boosts = VALID_KEYS[key]
 
-        # 2. 초대 코드에서 서버 ID 추출 (Discord API를 통해 파싱)
         guild_id = None
         invite_code = link.split("/")[-1]
         
@@ -145,7 +146,6 @@ class BoostModal(discord.ui.Modal, title="서버 부스트 사용하기"):
             await interaction.followup.send("❌ 올바르지 않은 서버 링크이거나 봇이 서버 정보를 불러올 수 없습니다.", ephemeral=True)
             return
 
-        # 3. tokens.txt 읽기
         if not os.path.exists("tokens.txt"):
             await interaction.followup.send("❌ tokens.txt 파일을 찾을 수 없습니다.", ephemeral=True)
             return
@@ -160,7 +160,6 @@ class BoostModal(discord.ui.Modal, title="서버 부스트 사용하기"):
         total_boosted = 0
         used_tokens_count = 0
 
-        # 키에 설정된 수량만큼 부스트 진행
         for token in tokens:
             if not token.strip():
                 continue
@@ -173,24 +172,22 @@ class BoostModal(discord.ui.Modal, title="서버 부스트 사용하기"):
                 total_boosted += count
                 used_tokens_count += 1
 
-        # 사용된 키 삭제 (일회용 처리)
         del VALID_KEYS[key]
 
         await interaction.followup.send(f"✅ 부스트 작업이 완료되었습니다! (총 {total_boosted}개 부스트 완료)", ephemeral=True)
 
-        # 4. 지정된 로그 채널에 결과 전송
-        log_channel = bot.get_channel(LOG_CHANNEL_ID)
-        if log_channel:
-            embed = discord.Embed(title="🚀 서버 부스트 사용 로그", color=discord.Color.blurple())
-            embed.add_field(name="사용자", value=f"{interaction.user.mention} (`{interaction.user}`)", inline=False)
-            embed.add_field(name="대상 서버", value=f"{guild_name} (`{guild_id}`)", inline=False)
-            embed.add_field(name="사용된 부스트 키", value=key, inline=True)
-            embed.add_field(name="성공한 부스트 개수", value=f"{total_boosted}개", inline=True)
-            embed.set_footer(text=f"사용 시각: {discord.utils.utcnow().strftime('%Y-%m-%d %H:%M:%S')}")
-            await log_channel.send(embed=embed)
+        if LOG_CHANNEL_ID:
+            log_channel = bot.get_channel(LOG_CHANNEL_ID)
+            if log_channel:
+                embed = discord.Embed(title="🚀 서버 부스트 사용 로그", color=discord.Color.blurple())
+                embed.add_field(name="사용자", value=f"{interaction.user.mention} (`{interaction.user}`)", inline=False)
+                embed.add_field(name="대상 서버", value=f"{guild_name} (`{guild_id}`)", inline=False)
+                embed.add_field(name="사용된 부스트 키", value=key, inline=True)
+                embed.add_field(name="성공한 부스트 개수", value=f"{total_boosted}개", inline=True)
+                embed.set_footer(text=f"사용 시각: {discord.utils.utcnow().strftime('%Y-%m-%d %H:%M:%S')}")
+                await log_channel.send(embed=embed)
 
 
-# 부스트 사용 버튼을 담고 있는 뷰 클래스
 class BoostView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
@@ -210,28 +207,24 @@ async def on_ready():
         print(e)
 
 
-# 1. /부스트 명령어: 회색 상호작용 버튼("부스트 사용하기") 전송
 @bot.tree.command(name="부스트", description="서버 부스트 사용 버튼을 출력합니다.")
-@app_commands.checks.has_permissions(administrator=True) # 관리자만 명령어 사용 가능 (원하시면 이 줄을 지우세요)
+@app_commands.checks.has_permissions(administrator=True)
 async def boost_command(interaction: discord.Interaction):
     view = BoostView()
     await interaction.response.send_message("아래 버튼을 눌러 서버 부스트를 진행하세요.", view=view)
 
 
-# 2. /키발급 명령어: 짝수 개수를 입력받아 부스트 키 발급
 @bot.tree.command(name="키발급", description="지정한 개수(짝수)만큼 부스트가 가능한 키를 발급합니다.")
 @app_commands.describe(개수="발급할 부스트 개수 (반드시 짝수 입력)")
-@app_commands.checks.has_permissions(administrator=True) # 관리자만 발급 가능
+@app_commands.checks.has_permissions(administrator=True)
 async def generate_key(interaction: discord.Interaction, 개수: int):
     if 개수 % 2 != 0:
         await interaction.response.send_message("❌ 부스트 개수는 반드시 **짝수**여야 합니다.", ephemeral=True)
         return
 
-    # 랜덤 키 생성 (예: BOOST-XXXX-XXXX)
     random_str = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
     key = f"BOOST-{random_str}"
 
-    # 키 저장
     VALID_KEYS[key] = 개수
 
     embed = discord.Embed(title="🔑 부스트 키 발급 완료", color=discord.Color.green())
@@ -242,5 +235,8 @@ async def generate_key(interaction: discord.Interaction, 개수: int):
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
-# 봇 토큰 입력 후 실행
-bot.run("MTU1NzkzOTI1Njc1MDUxNDIwNw.GAyL9l.pRfqI276zcpbWzlBAlyhS-QnXscA_7hD8ac23M")
+if __name__ == "__main__":
+    if not DISCORD_TOKEN:
+        print("❌ 오류: DISCORD_TOKEN 환경 변수가 설정되지 않았습니다.")
+    else:
+        bot.run(DISCORD_TOKEN)
